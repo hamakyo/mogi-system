@@ -70,74 +70,54 @@ class MAGISystem:
         except Exception as e:
             return AIResponse(content="", error=str(e))
 
-    def _get_gpt_response(self, prompt: str) -> AIResponse:
-        """GPT-4からの応答を取得"""
-        response = self.openai_client.chat.completions.create(
-            model=self.openai_model,
-            messages=[
-                {"role": "system", "content": self.roles[AIModel.GPT]},
-                {"role": "user", "content": prompt}
-            ],
-            stream=True
-        )
-        
-        full_response = ""
-        print(f"\n🔵 {self.openai_model}の視点:")
-        for chunk in response:
-            if chunk.choices[0].delta.content:
-                content = chunk.choices[0].delta.content
-                print(content, end="", flush=True)
-                full_response += content
-        print()
-        return AIResponse(content=full_response)
+def _get_gpt_response(self, prompt: str) -> AIResponse:
+    """GPT-4からの応答を取得"""
+    response = self.openai_client.chat.completions.create(
+        model=self.openai_model,
+        messages=[
+            {"role": "system", "content": self.roles[AIModel.GPT]},
+            {"role": "user", "content": prompt}
+        ],
+        stream=False  # Streamlitでは非ストリーミングモードを使用
+    )
+    
+    content = response.choices[0].message.content
+    return AIResponse(content=content)
 
-    def _get_claude_response(self, prompt: str) -> AIResponse:
-        """Claudeからの応答を取得"""
-        response = self.anthropic_client.messages.create(
-            model=self.anthropic_model,
-            max_tokens=1000,
-            system=self.roles[AIModel.CLAUDE],
-            messages=[{"role": "user", "content": prompt}],
-            stream=True
-        )
-        
-        full_response = ""
-        print(f"\n🟣 {self.anthropic_model}の視点:")
-        for message in response:
-            if message.type == "content_block_delta":
-                content = message.delta.text
-                print(content, end="", flush=True)
-                full_response += content
-        print()
-        return AIResponse(content=full_response)
+def _get_claude_response(self, prompt: str) -> AIResponse:
+    """Claudeからの応答を取得"""
+    response = self.anthropic_client.messages.create(
+        model=self.anthropic_model,
+        max_tokens=1000,
+        system=self.roles[AIModel.CLAUDE],
+        messages=[{"role": "user", "content": prompt}],
+        stream=False  # Streamlitでは非ストリーミングモードを使用
+    )
+    
+    content = response.content[0].text
+    return AIResponse(content=content)
 
-    def _get_gemini_response(self, prompt: str) -> AIResponse:
-        """Geminiからの応答を取得"""
-        try:
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                response = self.gemini.generate_content(
-                    f"{self.roles[AIModel.GEMINI]}\n\n{prompt}",
-                    safety_settings={"HARM_CATEGORY_HARASSMENT": "BLOCK_NONE"},
-                    generation_config={
-                        "temperature": 0.7,
-                        "top_p": 0.8,
-                        "top_k": 40
-                    },
-                    stream=True
-                )
-            
-            full_response = ""
-            print(f"\n🟢 {self.gemini_model}の視点:")
-            for chunk in response:
-                if chunk.text:
-                    print(chunk.text, end="", flush=True)
-                    full_response += chunk.text
-            print()
-            return AIResponse(content=full_response)
-            
-        except Exception as e:
-            return AIResponse(content="", error=f"Geminiでエラーが発生: {str(e)}")
+def _get_gemini_response(self, prompt: str) -> AIResponse:
+    """Geminiからの応答を取得"""
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            response = self.gemini.generate_content(
+                f"{self.roles[AIModel.GEMINI]}\n\n{prompt}",
+                safety_settings={"HARM_CATEGORY_HARASSMENT": "BLOCK_NONE"},
+                generation_config={
+                    "temperature": 0.7,
+                    "top_p": 0.8,
+                    "top_k": 40
+                },
+                stream=False  # Streamlitでは非ストリーミングモードを使用
+            )
+        
+        content = response.text
+        return AIResponse(content=content)
+        
+    except Exception as e:
+        return AIResponse(content="", error=f"Geminiでエラーが発生: {str(e)}")
 
     def _generate_conclusion(self, discussion_history: List[Dict]) -> Dict:
         """最終結論を生成"""
